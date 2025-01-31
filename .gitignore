@@ -1,0 +1,5 @@
+.vscode/
+.venv/
+test_datasets/
+
+*.pyc
