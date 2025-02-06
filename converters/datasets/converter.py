@@ -29,7 +29,7 @@ handlers = {
     'json': from_json,
     'jsonl': from_jsonl,
     'parquet': from_parquet
-};
+}
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert datasets from one format to another.')
