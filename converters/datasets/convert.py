@@ -1,8 +1,12 @@
 # requires following additional packages: pandas, pyarrow
 import argparse
 import pandas as pd
+from pathlib import Path
 
 formats = ['json', 'jsonl', 'parquet']
+
+def get_file_name(file_path):
+    return Path(file_path).stem
 
 def data_frame_to_format(df: pd.DataFrame, output_file):
     output_format = output_file[output_file.rfind('.') + 1:]
@@ -20,6 +24,13 @@ def from_json(file_name, output_file):
 def from_jsonl(file_name, output_file):
     df = pd.read_json(file_name, lines=True)
     data_frame_to_format(df, output_file)
+
+def from_jsonl_to_all(input_file_path, output_dir):
+    df = pd.read_json(input_file_path, lines=True)
+    file_name = get_file_name(input_file_path)
+
+    data_frame_to_format(df, f'{output_dir}/{file_name}.json')
+    data_frame_to_format(df, f'{output_dir}/{file_name}.parquet')
 
 def from_parquet(file_name, output_file):
     df = pd.read_parquet(file_name)
