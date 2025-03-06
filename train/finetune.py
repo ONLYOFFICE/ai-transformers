@@ -82,11 +82,33 @@ def main():
     model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype="auto")
     if tokenizer.padding_side == "left":
         raise RuntimeError("The tokenizer has defatult padding_side equal to 'left', which is not supported.")
+    # identify end tokens since different chat templates can append different tokens at the end
+    end_tokens = [tokenizer.eos_token]
+    append_eos = False
+    if (tokenizer.chat_template):
+        # take first example from dataset
+        example = dataset[0]['messages']
+        tokenized = tokenizer.apply_chat_template(example, return_dict=True, truncation=True, add_generation_prompt=False)['input_ids']
+        response_tokenized = tokenizer(example[2]['content'], add_special_tokens=False, truncation=True)['input_ids']
+        end_tokens_len = 1
+        while tokenized[-end_tokens_len] != response_tokenized[-1]:
+            end_tokens_len += 1
+        end_tokens_len -= 1
+        end_tokens = tokenized[-end_tokens_len:]
+        # add eos_token if it is absent
+        if tokenized[-1] != tokenizer.eos_token_id:
+            append_eos = True
+            end_tokens.append(tokenizer.eos_token_id)
     # define tokenizing function
     def tokenize_function(examples):
         if tokenizer.chat_template:
-            # if chat template is supported, tokenize with special function
+            # if chat template is supported, tokenize with apply_chat_template()
             tokenized = tokenizer.apply_chat_template(examples['messages'], return_dict=True, truncation=True, add_generation_prompt=False)
+            # append eos_token if chat template does not end with it
+            if append_eos:
+                for tokens, mask in zip(tokenized['input_ids'], tokenized['attention_mask']):
+                    tokens.append(tokenizer.eos_token_id)
+                    mask.append(1)
         else:
             # if chat template isn't supported, format prompts and tokenize as usual
             examples_formatted = [
@@ -96,9 +118,14 @@ def main():
                 for example in examples['messages']
             ]
             tokenized = tokenizer(examples_formatted, truncation=True)
+        # tokenize responses separately
+        responses = [example[2]['content'] for example in examples['messages']]
+        responses_tokenized = tokenizer(responses, add_special_tokens=False, truncation=True)['input_ids']
+        # add end tokens
+        for response in responses_tokenized:
+            response.extend(end_tokens)
         # create labels
-        responds = [example[2]['content'] + tokenizer.eos_token for example in examples['messages']]
-        tokenized['labels'] = tokenizer(responds, add_special_tokens=False, truncation=True)['input_ids']
+        tokenized['labels'] = responses_tokenized
         # validate labels
         for id, label in zip(tokenized['input_ids'], tokenized['labels']):
             # if label is NOT the suffix of input_id, raise an error
