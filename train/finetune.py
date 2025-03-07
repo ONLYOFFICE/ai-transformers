@@ -53,7 +53,7 @@ def main():
     parser.add_argument("-o", "--out", dest="out_dir", help="path to the output directory that will contain fine-tuned model files (defaults to './out')", default="./out")
     parser.add_argument("-r", "--ratio", dest="data_ratio", help="value in range (0.0, 1.0] that represents the ratio of how many rows of dataset to use (defaults to '1.0')", default="1.0")
     parser.add_argument("-s", "--steps", dest="steps", help="number of steps between evaluations (defaults to '500')", default="500")
-    parser.add_argument("-v", "--validate", dest="validate", action="store_true", help="wether to do some validations before training")
+    parser.add_argument("-v", "--validate", dest="validate", action="store_true", help="whether to do some validations before training")
     args = parser.parse_args()
     model_id = args.model_id
     dataset_file = args.dataset_file
