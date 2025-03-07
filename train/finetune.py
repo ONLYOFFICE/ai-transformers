@@ -140,7 +140,7 @@ def main():
                 )
         return tokenized
     # tokenize dataset
-    tokenized_dataset = dataset.map(tokenize_function, batched=True, remove_columns=["messages"])
+    tokenized_dataset = dataset.map(tokenize_function, batched=True, remove_columns=dataset.column_names)
     # split to test and eval datasets
     train_dataset, eval_dataset = tokenized_dataset.train_test_split(0.1).values()
     # define data collator
@@ -161,7 +161,7 @@ def main():
         per_device_train_batch_size=8,  # value can be adjusted based on GPU memory
         per_device_eval_batch_size=8,   # same as training batch size
         learning_rate=5e-5,             # standard LR for fine-tuning
-        weight_decay=0.01,              # helps prevent overfitting
+        weight_decay=0.00,              # helps prevent overfitting if > 0.0
         warmup_ratio=0.1,               # gradually increase LR
         lr_scheduler_type="cosine",     # cosine decay for LR
         num_train_epochs=3,             # 3-5 epochs for general fine-tuning
