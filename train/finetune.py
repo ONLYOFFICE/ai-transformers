@@ -19,7 +19,10 @@ class DataCollatorWithLabelsMasking(DataCollatorWithPadding):
         for i in range(len(features)):
             left_mask_length = len(features[i]['input_ids']) - len(labels[i])
             right_mask_length = len(collated['input_ids'][i]) - len(features[i]['input_ids'])
-            labels[i] = [-100] * left_mask_length + labels[i] + [-100] * right_mask_length
+            if self.tokenizer.padding_side == "right":
+                labels[i] = [-100] * left_mask_length + labels[i] + [-100] * right_mask_length
+            else:
+                labels[i] = [-100] * (right_mask_length + left_mask_length) + labels[i]
         collated['labels'] = torch.tensor(labels, dtype=torch.long)
         return collated
 
@@ -80,8 +83,6 @@ def main():
     if not tokenizer.pad_token:
         tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype="auto")
-    if tokenizer.padding_side == "left":
-        raise RuntimeError("The tokenizer has defatult padding_side equal to 'left', which is not supported.")
     # identify end tokens since different chat templates can append different tokens at the end
     end_tokens = [tokenizer.eos_token]
     append_eos = False
