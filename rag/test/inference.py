@@ -5,17 +5,11 @@ import argparse
 from typing import Optional
 
 rag_prompt = """
-You have access to retrieved data that provide relevant information to answer user questions accurately.
-
-Follow these guidelines when responding:
- 1. **Use the retrieved data as your primary and only source of truth.**
- 2. **Only generate answers based on retrieved information.** If the data do not contain relevant information, say: "I couldn't find relevant information."
- 3. **Incorporate the information naturally into your responses** without mentioning that it was retrieved.
- 4. **Do not make up facts or speculate.**
- 5. **Summarize and synthesize retrieved information in a clear and concise manner.**
- 6. **If multiple retrieved sources provide conflicting information, acknowledge the discrepancy.**
-
-Always aim for clarity, factual accuracy, and helpfulness.
+Context information is below.
+---------------------
+{context_str}
+---------------------
+Given the context information and not prior knowledge, answer the query.
 """
 
 def generate(
@@ -39,11 +33,16 @@ def generate(
         for i, example in enumerate(context.examples['messages']):
             print(f"{context.scores[i]:6.2f}\t{example[1]['content']}")
         print("</context>")
-    # add retrieved data to system prompt
-    system_prompt += f"\n{rag_prompt}"
-    system_prompt += f"\n### Retrieved Information:\n"
+    # format context as a string
+    context_str = ""
     for example in context.examples['messages']:
-        system_prompt += f" - {example[1]['content']}\n"
+        context_str += f"{example[1]['content']}\n"
+        if example[2]['content']:
+            context_str += f"\n{example[2]['content']}\n"
+        context_str += "\n"
+    context_str = context_str[:-2]
+    # add retrieved data to system prompt
+    system_prompt += rag_prompt.format(context_str=context_str)
     # generate a response
     device = model.device
     if tokenizer.chat_template:
@@ -60,12 +59,12 @@ def generate(
         tokenized = tokenizer.apply_chat_template(prompt_formatted, return_dict=True, truncation=True, add_generation_prompt=True, return_tensors="pt").to(device)
     else:
         prompt_formatted = [
-            f"### System:\n{system_prompt}\n\n"
-            f"### Instruction:\n{user_prompt}\n\n"
-            f"### Response:\n"
+            f"{system_prompt}\n"
+            f"Query: {user_prompt}\n"
+            f"Answer: "
         ]
         tokenized = tokenizer(prompt_formatted, truncation=True, return_tensors="pt").to(device)
-    out = model.generate(tokenized['input_ids'], attention_mask=tokenized['attention_mask'], max_new_tokens=512, pad_token_id=tokenizer.eos_token_id)
+    out = model.generate(tokenized['input_ids'], attention_mask=tokenized['attention_mask'], max_new_tokens=512, pad_token_id=tokenizer.eos_token_id, repetition_penalty=1.1)
     response = tokenizer.decode(out[0][len(tokenized[0]):], skip_special_tokens=True)
     return response
 
@@ -90,6 +89,9 @@ def main():
     # load tokenizer and chat model
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype="auto", device_map="auto")
+    # print chat template info
+    if tokenizer.chat_template:
+        print("info: chat template will be used")
     # load embedding model
     embedding_model = SentenceTransformer(embedding_model_id)
     # load dataset
