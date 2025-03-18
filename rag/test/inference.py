@@ -5,11 +5,12 @@ import argparse
 from typing import Optional
 
 rag_prompt = """
-Context information is below.
+You have access to the following context below.
 ---------------------
 {context_str}
 ---------------------
 Given the context information and not prior knowledge, answer the query.
+Your answer should be based only on the provided context. Do not use any other data for your answer.
 """
 
 def generate(
@@ -61,7 +62,7 @@ def generate(
         prompt_formatted = [
             f"{system_prompt}\n"
             f"Query: {user_prompt}\n"
-            f"Answer: "
+            f"Answer:\n"
         ]
         tokenized = tokenizer(prompt_formatted, truncation=True, return_tensors="pt").to(device)
     out = model.generate(tokenized['input_ids'], attention_mask=tokenized['attention_mask'], max_new_tokens=512, pad_token_id=tokenizer.eos_token_id, repetition_penalty=1.1)
